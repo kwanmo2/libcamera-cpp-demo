@@ -2,19 +2,23 @@
 #include <opencv2/core.hpp>
 #include <opencv2/imgcodecs.hpp>
 #include <opencv2/highgui.hpp>
-
+#include <array>
+#include <iomanip>
+#include <sstream>
+#include <iostream>
+#include <string>
 #include "LibCamera.h"
 
 using namespace cv;
-
+using namespace std;
 int main() {
     time_t start_time = time(0);
     int frame_count = 0;
     float lens_position = 100;
     float focus_step = 50;
     LibCamera cam;
-    uint32_t width = 1280;
-    uint32_t height = 720;
+    uint32_t width = 640;
+    uint32_t height = 480;
     uint32_t stride;
     char key;
     int ret = cam.initCamera();
@@ -28,8 +32,9 @@ int main() {
     // Adjust the contrast of the output image, where 1.0 = normal contrast
     controls_.set(controls::Contrast, 1.5);
     // Set the exposure time
-    controls_.set(controls::ExposureTime, 20000);
+    controls_.set(controls::ExposureTime, 10000);
     cam.set(controls_);
+    int32_t User_Exposure_Time = 10000; 
     if (!ret) {
         bool flag;
         LibcameraOutData frameData;
@@ -45,27 +50,40 @@ int main() {
             if (key == 'q') {
                 break;
             } else if (key == 'f') {
-                ControlList controls;
-                controls.set(controls::AfMode, controls::AfModeAuto);
-                controls.set(controls::AfTrigger, 0);
-                cam.set(controls);
+                controls_.set(controls::AfMode, controls::AfModeAuto);
+                controls_.set(controls::AfTrigger, 0);
+                cam.set(controls_);
             } else if (key == 'a' || key == 'A') {
                 lens_position += focus_step;
             } else if (key == 'd' || key == 'D') {
                 lens_position -= focus_step;
+            } else if (key =='t' || key == 'T'){
+                User_Exposure_Time = User_Exposure_Time + 1000;
+                // Set the exposure time
+                controls_.set(controls::ExposureTime, User_Exposure_Time);
+                cam.set(controls_);
+            } else if (key =='y' || key == 'Y'){
+                User_Exposure_Time = User_Exposure_Time - 1000;
+                // Set the exposure time
+                controls_.set(controls::ExposureTime, User_Exposure_Time);
+                cam.set(controls_);
+            }else if (key =='s' || key == 'S'){
+                imwrite("Test.bmp", im);
             }
-
             // To use the manual focus function, libcamera-dev needs to be updated to version 0.0.10 and above.
             if (key == 'a' || key == 'A' || key == 'd' || key == 'D') {
-                ControlList controls;
-                controls.set(controls::AfMode, controls::AfModeManual);
-				controls.set(controls::LensPosition, lens_position);
-                cam.set(controls);
+
+                controls_.set(controls::AfMode, controls::AfModeManual);
+				controls_.set(controls::LensPosition, lens_position);
+                cam.set(controls_);
             }
 
             frame_count++;
             if ((time(0) - start_time) >= 1){
-                printf("fps: %d\n", frame_count);
+           
+                auto ExpT =controls_.get<int32_t>(controls::ExposureTime);
+                printf("fps:%d_ExpT:%dus\n", frame_count,ExpT.value());
+                
                 frame_count = 0;
                 start_time = time(0);
             }
