@@ -1,0 +1,3 @@
+/home/jamesyeon/libcamera-cpp-demo/build/CMakeFiles/libcamera-demo.dir
+/home/jamesyeon/libcamera-cpp-demo/build/CMakeFiles/edit_cache.dir
+/home/jamesyeon/libcamera-cpp-demo/build/CMakeFiles/rebuild_cache.dir
