@@ -7,6 +7,7 @@
 #include <sstream>
 #include <iostream>
 #include <string>
+#include <vector>
 #include "LibCamera.h"
 
 using namespace cv;
@@ -17,14 +18,14 @@ int main() {
     float lens_position = 100;
     float focus_step = 50;
     LibCamera cam;
-    uint32_t width = 640;
-    uint32_t height = 480;
+    uint32_t width = 1280;
+    uint32_t height = 960;
     uint32_t stride;
     char key;
     int ret = cam.initCamera();
-    cam.configureStill(width, height, formats::RGB888, 4, 0);
+    cam.configureStill(width, height, formats::RGB888, 4, 180);
     ControlList controls_;
-    int64_t frame_time = 1000000 / 10;
+    int64_t frame_time = 10000 / 10;
     float User_Brightness = 0.0;
     float User_Contrast = 1.0;
     int32_t User_BlackLevel = 1000;
@@ -50,13 +51,21 @@ int main() {
     // Adjust the contrast of the output image, where 1.0 = normal contrast
     controls_.set(controls::Contrast, User_Contrast);
     // Set the exposure time
-    controls_.set(controls::ExposureTime, ImageSet_White_Test[index]);
+    controls_.set(controls::ExposureTime, 20000);
     //controls_.set(controls::SensorBlackLevels,User_BlackLevel);
     //controls_.set(controls::AnalogueGain,User_BlackLevel);
     
     cam.set(controls_);
     int SaveCount = 0;
+    int roi_OffsetX =0;
+    int roi_OffsetY =0;
+    int roi_Width =width;
+    int roi_Height =height;
+    int scale = 1;
+    int hMove = 1;
+    int vMove = 1;
     double min, max;
+    
     cv::Point min_loc, max_loc;
     if (!ret) {
         bool flag;
@@ -67,28 +76,49 @@ int main() {
             if (!flag)
                 continue;
             Mat im(height, width, CV_8UC3, frameData.imageData);
+            
             Mat rgb[3];
             split(im,rgb);
             minMaxLoc(rgb[1],&min,&max,&min_loc,&max_loc);
-            
-            imshow("libcamera-demo", im);
+            Rect r(roi_OffsetX,roi_OffsetY,roi_OffsetX+roi_Width,roi_OffsetY+roi_Height);
+            Mat resized_im = im(r);
+            Mat new_resized_im;
+            resize(resized_im,new_resized_im,cv::Size(width,height));
+            imshow("libcamera-demo", new_resized_im);
+            //imshow("libcamera-demo", im);
             key = waitKey(1);
-            if (key == 'q') {
+            if (key == 'p') {
                 break;
             } else if (key == 'f') {
                 controls_.set(controls::AfMode, controls::AfModeAuto);
                 controls_.set(controls::AfTrigger, 0);
                 //cam.set(controls_);
             } else if (key == 'a' || key == 'A') {
-                lens_position += focus_step;
+                hMove++;
+                if(roi_OffsetX - roi_Width >0) roi_OffsetX = roi_OffsetX - roi_Width;
             } else if (key == 'd' || key == 'D') {
-                lens_position -= focus_step;
-            } else if (key =='t' || key == 'T'){
+                hMove--;
+                if(roi_OffsetX + roi_Width >0) roi_OffsetX = roi_OffsetX + roi_Width;
+            } else if (key == 'z' || key == 'Z') {
+                scale = scale*2;
+                roi_Width = int(roi_Width/scale);
+                roi_OffsetX = int((width-roi_Width)/2);
+                roi_Height = int(roi_Height/scale);
+                roi_OffsetY = int((height-roi_Height)/2); 
+                printf("%d_%d_%d_%d",roi_Width,roi_OffsetX,roi_Height,roi_OffsetY );
+            } else if (key == 'x' || key == 'X') {
+                scale = scale/2;
+                roi_Width = int(roi_Width*scale);
+                roi_OffsetX = int((width-roi_Width)/2);
+                roi_Height = int(roi_Height*scale);
+                roi_OffsetY = int((height-roi_Height)/2); 
+                printf("%d_%d_%d_%d",roi_Width,roi_OffsetX,roi_Height,roi_OffsetY );
+            } else if (key =='e' || key == 'E'){
                 User_Exposure_Time = User_Exposure_Time + 1000;
                 // Set the exposure time
                 controls_.set(controls::ExposureTime, User_Exposure_Time);
                 
-            } else if (key =='y' || key == 'Y'){
+            } else if (key =='q' || key == 'Q'){
                 User_Exposure_Time = User_Exposure_Time - 1000;
                 // Set the exposure time
                 controls_.set(controls::ExposureTime, User_Exposure_Time);
@@ -102,10 +132,14 @@ int main() {
                 // Adjust the brightness of the output images, in the range -1.0 to 1.0
                 controls_.set(controls::Brightness, User_Brightness);
             } else if (key =='b' || key == 'B'){
-                
+                scale = 1;
+                roi_OffsetX =0;
+                roi_OffsetY =0;
+                roi_Width =width;
+                roi_Height =height;
             } else if (key =='n' || key == 'N'){
 
-            }else if (key =='s' || key == 'S'){
+            }else if (key =='h' || key == 'H'){
 
                 string FileName = "Bit8_Arducam_IMX477_ExpT_";
                 string str_TimeUnit = "us_";
@@ -119,17 +153,11 @@ int main() {
                 FileName.append(FileExtension);
                 
                 std::cout<<FileName<<std::endl;
-                imwrite(FileName, rgb[1]);
+                imwrite(FileName, im);
                 SaveCount++;
                 if (SaveCount == 10) SaveCount =0;
             }
-            // To use the manual focus function, libcamera-dev needs to be updated to version 0.0.10 and above.
-            if (key == 'a' || key == 'A' || key == 'd' || key == 'D') {
-
-                controls_.set(controls::AfMode, controls::AfModeManual);
-				controls_.set(controls::LensPosition, lens_position);
-                //cam.set(controls_);
-            }
+            
             cam.set(controls_);
             frame_count++;
             if ((time(0) - start_time) >= 1){
