@@ -25,16 +25,17 @@ int main() {
     int ret = cam.initCamera();
     cam.configureStill(width, height, formats::RGB888, 4, 180);
     ControlList controls_;
-    int64_t frame_time = 10000 / 10;
+    int64_t frame_time = 1000 / 10;
     float User_Brightness = 0.0;
     float User_Contrast = 1.0;
     int32_t User_BlackLevel = 1000;
-    float User_AnalogGain;
+    float User_AnalogGain = 1;
     float User_DigitalGain;
     float User_SensorTemperature;
     int32_t User_Exposure_Time = 1000;
     int32_t ImageSet_White_Test[40] = {100, 1000, 1500,2000	, 3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000,20000, 30000,40000,50000,60000,70000,80000,90000,
             100000,150000,200000,250000,300000,350000,400000,450000,500000,550000,600000,650000,700000,750000,800000,850000,900000,950000,1000000 };
+    int32_t ImageSet_HDR[3] = {1000, 5000, 20000};
     int index =0;
     //libcamera::Span<const int32_t, 4> BLs =controls_.get(controls::SensorBlackLevels);
     auto ALgain =controls_.get<float>(controls::AnalogueGain);
@@ -51,9 +52,9 @@ int main() {
     // Adjust the contrast of the output image, where 1.0 = normal contrast
     controls_.set(controls::Contrast, User_Contrast);
     // Set the exposure time
-    controls_.set(controls::ExposureTime, 20000);
+    controls_.set(controls::ExposureTime, 100000);
     //controls_.set(controls::SensorBlackLevels,User_BlackLevel);
-    //controls_.set(controls::AnalogueGain,User_BlackLevel);
+    controls_.set(controls::AnalogueGain,2);
     
     cam.set(controls_);
     int SaveCount = 0;
@@ -65,7 +66,7 @@ int main() {
     int hMove = 1;
     int vMove = 1;
     double min, max;
-    
+    bool b_HDRmode = 0;
     cv::Point min_loc, max_loc;
     if (!ret) {
         bool flag;
@@ -76,11 +77,16 @@ int main() {
             if (!flag)
                 continue;
             Mat im(height, width, CV_8UC3, frameData.imageData);
-            
+            printf("%d_%d",width, height);
             Mat rgb[3];
             split(im,rgb);
             minMaxLoc(rgb[1],&min,&max,&min_loc,&max_loc);
-            Rect r(roi_OffsetX,roi_OffsetY,roi_OffsetX+roi_Width,roi_OffsetY+roi_Height);
+            if(b_HDRmode){
+                
+                
+            }
+
+            Rect r(roi_OffsetX,roi_OffsetY,roi_Width,roi_Height);
             Mat resized_im = im(r);
             Mat new_resized_im;
             resize(resized_im,new_resized_im,cv::Size(width,height));
@@ -93,6 +99,12 @@ int main() {
                 controls_.set(controls::AfMode, controls::AfModeAuto);
                 controls_.set(controls::AfTrigger, 0);
                 //cam.set(controls_);
+            } else if (key == 'w' || key == 'W') {
+                vMove++;
+                if(roi_OffsetY - roi_Height >0) roi_OffsetY = roi_OffsetY - roi_Height;
+            } else if (key == 's' || key == 'S') {
+                vMove--;
+                if(roi_OffsetY + roi_Height >0) roi_OffsetY = roi_OffsetY + roi_Height;
             } else if (key == 'a' || key == 'A') {
                 hMove++;
                 if(roi_OffsetX - roi_Width >0) roi_OffsetX = roi_OffsetX - roi_Width;
@@ -124,13 +136,16 @@ int main() {
                 controls_.set(controls::ExposureTime, User_Exposure_Time);
                 //cam.set(controls_);
             } else if (key =='g' || key == 'G'){
-                User_Brightness = User_Brightness + 0.1;
+                //User_Brightness = User_Brightness + 0.1;
                 // Adjust the brightness of the output images, in the range -1.0 to 1.0
-                controls_.set(controls::Brightness, User_Brightness);
+                //controls_.set(controls::Brightness, User_Brightness);
+                User_AnalogGain = User_AnalogGain*2;
+                controls_.set(controls::AnalogueGain,User_AnalogGain);
             } else if (key =='h' || key == 'H'){
-                User_Brightness = User_Brightness - 0.1;
+                //User_Brightness = User_Brightness - 0.1;
                 // Adjust the brightness of the output images, in the range -1.0 to 1.0
-                controls_.set(controls::Brightness, User_Brightness);
+                User_AnalogGain = User_AnalogGain/2;
+                controls_.set(controls::AnalogueGain, User_AnalogGain);
             } else if (key =='b' || key == 'B'){
                 scale = 1;
                 roi_OffsetX =0;
@@ -138,7 +153,28 @@ int main() {
                 roi_Width =width;
                 roi_Height =height;
             } else if (key =='n' || key == 'N'){
-
+                b_HDRmode = true;
+            }else if (key =='1'){
+                roi_OffsetX = 0;
+                roi_OffsetY = 0;
+                roi_Width = 640;
+                roi_Height = 480;
+            }else if (key =='2'){
+                roi_Width = 640;
+                roi_Height = 480;
+                roi_OffsetX = 640;
+                roi_OffsetY = 0;
+                
+            }else if (key =='3'){
+                roi_Width = int(width*0.5);
+                roi_OffsetX = 0;
+                roi_Height = int(height*0.5);
+                roi_OffsetY = int(height*0.5);
+            }else if (key =='4'){
+                roi_Width = int(width*0.5);
+                roi_OffsetX = int(width*0.5);
+                roi_Height = int(height*0.5);
+                roi_OffsetY = int(height*0.5);
             }else if (key =='h' || key == 'H'){
 
                 string FileName = "Bit8_Arducam_IMX477_ExpT_";
